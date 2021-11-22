@@ -28,7 +28,9 @@
 
 char diskfile_path[PATH_MAX];
 
-// Declare your in-memory data structures here
+struct superblock* sBlock;
+bitmap_t inode_bits;
+bitmap_t data_bits;
 
 /* 
  * Get available inode number from bitmap
@@ -169,6 +171,19 @@ static void *tfs_init(struct fuse_conn_info *conn) {
   // Step 1b: If disk file is found, just initialize in-memory data structures
   // and read superblock from disk
 
+	int fd = dev_open(diskfile_path); //open diskfile, to be read into superblock
+
+	if (fd == -1) {
+		tfs_mkfs();
+	}
+
+	sBlock = (struct superblock*)malloc(BLOCK_SIZE);
+	inode_bits = (bitmap_t)malloc(MAX_INUM/8); //inodes 128-256 bytes normally
+	data_bits = (bitmap_t)malloc(MAX_DNUM/8);
+	bio_read(0,sBlock); //read diskfile info
+
+
+
 	return NULL;
 }
 
@@ -177,6 +192,12 @@ static void tfs_destroy(void *userdata) {
 	// Step 1: De-allocate in-memory data structures
 
 	// Step 2: Close diskfile
+
+	free(sBlock);
+	free(inode_bits);
+	free(data_bits);
+
+	dev_close();
 
 }
 

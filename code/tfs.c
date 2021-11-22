@@ -36,12 +36,19 @@ char diskfile_path[PATH_MAX];
 int get_avail_ino() {
 
 	// Step 1: Read inode bitmap from disk
+	bitmap_t b = i_bitmap_blk; //ISSUE: need inode bitmap
 	
 	// Step 2: Traverse inode bitmap to find an available slot
+	int i;
+	while(get_bitmap(b,i)!=0){ //while ith bit of bitmap b is unfree...
 
+		i++; // ...iterate
+	}
+		//after WHILE, should be at first available free inode
+	
 	// Step 3: Update inode bitmap and write to disk 
-
-	return 0;
+	set_bitmap(b,i) = 1; //mark as used
+	return i;
 }
 
 /* 
@@ -50,12 +57,16 @@ int get_avail_ino() {
 int get_avail_blkno() {
 
 	// Step 1: Read data block bitmap from disk
-	
+	bitmap_t b = 0;//ISSUE: need block bitmap
+
 	// Step 2: Traverse data block bitmap to find an available slot
-
+	int i;
+	while(get_bitmap(b,i)!=0){
+		i++;
+	}
 	// Step 3: Update data block bitmap and write to disk 
-
-	return 0;
+	set_bitmap(b,i) = 1;
+	return i;
 }
 
 /* 

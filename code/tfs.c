@@ -110,18 +110,36 @@ int writei(uint16_t ino, struct inode *inode) {
  * directory operations
  */
 int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *dirent) {
-
+	int status = -1;
   // Step 1: Call readi() to get the inode using ino (inode number of current directory)
-	struct inode myNode;
-	readi(ino,myNode);
+	struct inode *myNode;
+	readi(ino,*myNode);
   // Step 2: Get data block of current directory from inode
-	blockAddr = sBlock->d_start_blk + (myNode->ino * sizeof(inode));
+	void* buf = malloc(BLOCK_SIZE); //create a buffer
+
+	int i;
+	for(i=0;i<16;i++){ //Iterate through the List of pointers
+		const int myBlockNumber = sBlock->d_start_blk+myNode.direct_ptr[i]; 
+		if(myNode.direct_ptr[i] != -1){ //If valid...
+			bio_read(myBlockNumber,buf); //...read into the buffer
+			struct dirent* listOfDirents = (struct dirent*) buf; //Make a list of DIRECTORY ENTRIES. This is within direct_ptr[i].
+			//New FOR loop:
+			int j;
+			numOfDirents = BLOCK_SIZE/sizeof(struct dirent);
+
+			for(j=0;j<numOfDirents;j++){ //For everything in the directory...
+				if((listOfDirents[j].valid == 1) && (strcmp(fname,listOfDirents[j].name) == 0)){ //if valid and both have same name...
+					*dirent = listOfDirents[j]; // let our dirent pointer be that entry
+					status = 1;} //...and set status flag to 1 to indicate success.
+			}
+	}
+	free(buf);
+	return status;
+
 
   // Step 3: Read directory's data block and check each directory entry.
-  //If the name matches, then copy directory entry to dirent structure
-	while()
-
-	return 0;
+  //If the name matches, then copy directory entry to dirent structure'
+	
 }
 
 int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t name_len) {

@@ -20,8 +20,8 @@
 #define MAX_INUM 1024
 #define MAX_DNUM 16384
 
-#define FOLDER = 0
-#define FILE = 1
+#define FOLDER 0
+#define FILE 1
 
 
 struct superblock {

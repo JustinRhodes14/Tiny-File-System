@@ -38,7 +38,7 @@ bitmap_t data_bits;
 int get_avail_ino() {
 
 	// Step 1: Read inode bitmap from disk
-	bitmap_t b = i_bitmap_blk; //ISSUE: need inode bitmap
+	bitmap_t b = inode_bits;
 	
 	// Step 2: Traverse inode bitmap to find an available slot
 	int i;
@@ -59,7 +59,7 @@ int get_avail_ino() {
 int get_avail_blkno() {
 
 	// Step 1: Read data block bitmap from disk
-	bitmap_t b = 0;//ISSUE: need block bitmap
+	bitmap_t b = data_bits;
 
 	// Step 2: Traverse data block bitmap to find an available slot
 	int i;
@@ -77,9 +77,12 @@ int get_avail_blkno() {
 int readi(uint16_t ino, struct inode *inode) {
 
   // Step 1: Get the inode's on-disk block number
+	onDiskAddress = (sBlock->i_start_blk + ino)/; //startadr + size of inode * inode number
+	uin16_t blockNum;
+	//ISSUE:...how do i get the block number from addr?
 
   // Step 2: Get offset of the inode in the inode on-disk block
-
+	
   // Step 3: Read the block from disk and then copy into inode structure
 
 	return 0;
@@ -103,11 +106,14 @@ int writei(uint16_t ino, struct inode *inode) {
 int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *dirent) {
 
   // Step 1: Call readi() to get the inode using ino (inode number of current directory)
-
+	struct inode myNode;
+	readi(ino,myNode);
   // Step 2: Get data block of current directory from inode
+	blockAddr = sBlock->d_start_blk + (myNode->ino * sizeof(inode));
 
   // Step 3: Read directory's data block and check each directory entry.
   //If the name matches, then copy directory entry to dirent structure
+	while()
 
 	return 0;
 }

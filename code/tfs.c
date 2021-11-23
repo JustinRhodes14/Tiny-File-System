@@ -82,7 +82,12 @@ int readi(uint16_t ino, struct inode *inode) {
 	uint16_t onDiskBlockNo = (sBlock->i_start_blk); //starting block + ino * inodes-per-block
 
   // Step 2: Get offset of the inode in the inode on-disk block
+<<<<<<< HEAD
 	uint16_t offset = ino % inodesPerBlock;
+=======
+
+  // Step 3: Read the block from disk and then copy into inode structure
+>>>>>>> 250083448e239d81034340dfe776994a6f4739db
 
   // Step 3: Read the block from disk and then copy into inode structure
 	bio_read(onDiskBlockNo+offset,*inode); //disk to struct
@@ -186,7 +191,7 @@ int tfs_mkfs() {
 	memset(data_bits,0,BLOCK_SIZE);
 
 	int i;
-	for (i = 0; i < MAX_INUM; i++) {
+	for (i = 1; i < MAX_INUM; i++) { //start at 1 for root inode
 		struct inode* node = malloc(sizeof(struct inode));
 		memset(node,0,sizeof(struct inode));
 		node->valid = 0; //0 for invalid
@@ -211,8 +216,42 @@ int tfs_mkfs() {
 	sBlock->i_bitmap_blk = 1; //starting address for block
 	sBlock->d_bitmap_blk = sBlock->i_bitmap_blk+1;
 	sBlock->i_start_blk = sBlock->d_bitmap_blk+1;
-	sBlock->d_start_blk = sBlock->i_start_blk+
+	sBlock->d_start_blk = sBlock->i_start_blk+129; //128 inode blocks + 1 (starting block)
+	bio_write(0,(void*)sBlock);
+	set_bitmap(inode_bits,0);
+	bio_write(sBlock->i_bitmap_blk,(void*)inode_bits);
+	bio_write(sBlock->d_bitmap_blk,(void*)data_bits);
 
+	struct inode* root = malloc(sizeof(struct inode));
+	memset(root,0,sizeof(struct inode));
+	root->ino = 0;
+	root->type = FOLDER;
+	root->valid = 1;
+	root->size = 0;
+	root->link = 2 // 2 links because current points to the inode
+
+	int g;
+	for (g = 0; g < 16; g++) {
+		node->direct_ptr[j] = 0;
+	}
+
+	for (g = 0; g < 8; g++) {
+		node->indirect_ptr[j] = 0;
+	}
+
+	time(&(root->vstat.st_atime));
+	time(&(root->vstat.st_mtime));
+	time(&(root->vstat.st_ctime));
+
+	int avail_block = get_avail_blkno;
+	set_bitmap(data_bits,avail_block);
+	bio_write(sBlock->d_bitmap_blk,(void*)data_bits);
+	root->direct_ptr[0] = avail_block;
+	//somewhat confused, come back
+	writei(0,root);
+	dir_add(*root,root,".",2);
+	free(root);
+	
 
 	return 0;
 }
@@ -235,7 +274,7 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 	}
 
 	sBlock = (struct superblock*)malloc(BLOCK_SIZE);
-	inode_bits = (bitmap_t)malloc(BLOCK_SIZE); //inodes 128-256 bytes normally
+	inode_bits = (bitmap_t)malloc(BLOCK_SIZE); 
 	data_bits = (bitmap_t)malloc(BLOCK_SIZE);
 	bio_read(0,sBlock); //read diskfile info
 

@@ -40,6 +40,7 @@ struct inode {
 	int			direct_ptr[16];		/* direct pointer to data block */
 	int			indirect_ptr[8];	/* indirect pointer to data block */
 	struct stat	vstat;				/* inode stat */
+		//do we change this if we write an inode, or just only edit the corresponding bit on bitmap?
 };
 
 struct dirent {

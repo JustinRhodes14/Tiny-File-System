@@ -31,6 +31,8 @@ char diskfile_path[PATH_MAX];
 struct superblock* sBlock;
 bitmap_t inode_bits;
 bitmap_t data_bits;
+uint16_t inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
+
 
 /* 
  * Get available inode number from bitmap
@@ -77,25 +79,26 @@ int get_avail_blkno() {
 int readi(uint16_t ino, struct inode *inode) {
 
   // Step 1: Get the inode's on-disk block number
-	onDiskAddress = (sBlock->i_start_blk + ino)/; //startadr + size of inode * inode number
-	uin16_t blockNum;
-	//ISSUE:...how do i get the block number from addr?
+	uint16_t onDiskBlockNo = (sBlock->i_start_blk); //starting block + ino * inodes-per-block
 
   // Step 2: Get offset of the inode in the inode on-disk block
-	
-  // Step 3: Read the block from disk and then copy into inode structure
+	uint16_t offset = ino % inodesPerBlock;
 
+  // Step 3: Read the block from disk and then copy into inode structure
+	bio_read(onDiskBlockNo+offset,*inode); //disk to struct
 	return 0;
 }
 
 int writei(uint16_t ino, struct inode *inode) {
 
 	// Step 1: Get the block number where this inode resides on disk
+	uint16_t onDiskBlockNo = (sBlock->i_start_blk)
 	
 	// Step 2: Get the offset in the block where this inode resides on disk
+	uint16_t offset = ino % inodesPerBlock;
 
 	// Step 3: Write inode to disk 
-
+	bio_write(onDiskBlockNo+offset,*inode); //struct to disk
 	return 0;
 }
 

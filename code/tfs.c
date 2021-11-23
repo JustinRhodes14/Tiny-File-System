@@ -52,6 +52,8 @@ int get_avail_ino() {
 	
 	// Step 3: Update inode bitmap and write to disk 
 	set_bitmap(b,i) = 1; //mark as used
+	bio_write(sBlock->i_bitmap_blk,b); //write to disk (superblock.data_bitmap)
+
 	return i;
 }
 
@@ -69,7 +71,8 @@ int get_avail_blkno() {
 		i++;
 	}
 	// Step 3: Update data block bitmap and write to disk 
-	set_bitmap(b,i) = 1;
+	set_bitmap(b,i) = 1; //mark as used
+	bio_write(sBlock->d_bitmap_blk,b); //write to superblock.data_bitmap
 	return i;
 }
 
@@ -82,12 +85,7 @@ int readi(uint16_t ino, struct inode *inode) {
 	uint16_t onDiskBlockNo = (sBlock->i_start_blk); //starting block + ino * inodes-per-block
 
   // Step 2: Get offset of the inode in the inode on-disk block
-<<<<<<< HEAD
 	uint16_t offset = ino % inodesPerBlock;
-=======
-
-  // Step 3: Read the block from disk and then copy into inode structure
->>>>>>> 250083448e239d81034340dfe776994a6f4739db
 
   // Step 3: Read the block from disk and then copy into inode structure
 	bio_read(onDiskBlockNo+offset,*inode); //disk to struct

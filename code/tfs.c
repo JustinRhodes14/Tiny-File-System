@@ -168,6 +168,43 @@ int tfs_mkfs() {
 
 	// update inode for root directory
 
+	dev_init(diskfile_path);
+
+	sBlock = (struct superblock*)malloc(BLOCK_SIZE);
+	inode_bits = (bitmap_t)malloc(BLOCK_SIZE);
+	data_bits = (bitmap_t)malloc(BLOCK_SIZE);
+	memset(inode_bits,0,BLOCK_SIZE);
+	memset(data_bits,0,BLOCK_SIZE);
+
+	int i;
+	for (i = 0; i < MAX_INUM; i++) {
+		struct inode* node = malloc(sizeof(struct inode));
+		memset(node,0,sizeof(struct inode));
+		node->valid = 0; //0 for invalid
+
+		int j;
+		for (j = 0; j < 16; j++) {
+			node->direct_ptr[j] = 0;
+		}
+
+		for (j = 0; j < 8; j++) {
+			node->indirect_ptr[j] = 0;
+		}
+		node->ino = i;
+
+		writei(i,node);
+		free(node);
+	}
+
+	sBlock->magic_num = MAGIC_NUM;
+	sBlock->max_inum = MAX_INUM;
+	sBlock->max_dnum = MAX_DNUM;
+	sBlock->i_bitmap_blk = 1; //starting address for block
+	sBlock->d_bitmap_blk = sBlock->i_bitmap_blk+1;
+	sBlock->i_start_blk = sBlock->d_bitmap_blk+1;
+	sBlock->d_start_blk = sBlock->i_start_blk+
+
+
 	return 0;
 }
 
@@ -189,8 +226,8 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 	}
 
 	sBlock = (struct superblock*)malloc(BLOCK_SIZE);
-	inode_bits = (bitmap_t)malloc(MAX_INUM/8); //inodes 128-256 bytes normally
-	data_bits = (bitmap_t)malloc(MAX_DNUM/8);
+	inode_bits = (bitmap_t)malloc(BLOCK_SIZE); //inodes 128-256 bytes normally
+	data_bits = (bitmap_t)malloc(BLOCK_SIZE);
 	bio_read(0,sBlock); //read diskfile info
 
 

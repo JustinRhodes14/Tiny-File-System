@@ -157,18 +157,65 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t name_len) {
 
 	// Step 1: Read dir_inode's data block and check each directory entry of dir_inode
+	enum statuses {NEW_ENTRY = 1, ALREADY_EXISTS=0};
+	int status;
+	void* myBuf = malloc(BLOCK_SIZE);
+	int i;
+	for(i=0;i<16;i++){
+		const int myBlockNumber = sBlock->d_start_blk+dir_inode.direct_ptr[i]; 
+		if(dir_inode.valid != 1){ 
+			bio_read(myBlockNumber,myBuf); //read into buffer
+			struct dirent* listOfDirents = (struct dirent*) myBuf; //make list of DIR ENTRIES in direct.ptr[i]
+
+			int j; int numOfDirents = BLOCK_SIZE/sizeof(struct dirent);
+			for(j=0;j<numOfDirents;j++){ //For each directory entry...
+				// Step 2: Check if fname (directory name) is already used in other entries
+				if( (listOfDirents[j].valid==1) && (strcmp(fname,listOfDirents[j].name) == 0) ){
+					// Step 3: Add directory entry in dir_inode's data block and write to disk
+					status = ALREADY_EXISTS; //for the retval
+					dir_inode.direct_ptr[j] = listOfDirents[j].ino;//already exists. add to dir.inode's block
+					}
+					
+			}
+			//else, file not found
+				// Step 4: Allocate a new data block for this directory if it does not exist
+				status = NEW_ENTRY;
+				const int inodeBlock = sBlock->d_start_blk + dir_inode.direct_ptr[j];
+				// Update directory inode
+				bio_read(inodeBlock,myBuf);
+				// Create new dir entry
+				struct dirent* newDirEntry = (struct dirent*)malloc(sizeof(struct dirent));
+
+				/*
+				// Check and truncate fname if needed
+				const char newName[252];
+				if(name_len <= 252){
+					*newDirEntry->name = fname;}
+				else{
+					newName = fname;
+					memset(newName,'\0',252);
+					*newDirEntry->name = newName;
+					}
+				*/
+				*newDirEntry->name = fname;
+				newDirEntry->valid = 1;
+				newDirEntry->ino = f_ino;
+				//dir_inode.direct_ptr[get_avail_ino()] = (struct dirent*) newDirEntry.ino;
+				// Write directory entry
+				listOfDirents[j] = *newDirEntry;
+				bio_write(inodeBlock,(void*) listOfDirents);
+				free(myBuf);
+		}
+
+	}
+
 	
-	// Step 2: Check if fname (directory name) is already used in other entries
 
-	// Step 3: Add directory entry in dir_inode's data block and write to disk
 
-	// Allocate a new data block for this directory if it does not exist
+	
 
-	// Update directory inode
 
-	// Write directory entry
-
-	return 0;
+	return status;
 }
 
 int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {

@@ -32,6 +32,7 @@ struct superblock* sBlock;
 bitmap_t inode_bits;
 bitmap_t data_bits;
 uint16_t inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
+int numOfDirents = BLOCK_SIZE/sizeof(struct dirent);
 
 
 /* 
@@ -139,7 +140,6 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
 			struct dirent* listOfDirents = (struct dirent*) buf; //Make a list of DIRECTORY ENTRIES. This is within direct_ptr[i].
 			//New FOR loop:
 			int j;
-			int numOfDirents = BLOCK_SIZE/sizeof(struct dirent);
 
 			for(j=0;j<numOfDirents;j++){ //For everything in the directory...
 				if((listOfDirents[j].valid == 1) && (strcmp(fname,listOfDirents[j].name) == 0)){ //if valid and both have same name...
@@ -174,10 +174,30 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
 
 	// Step 1: Read dir_inode's data block and checks each directory entry of dir_inode
-	
-	// Step 2: Check if fname exist
-
-	// Step 3: If exist, then remove it from dir_inode's data block and write to disk
+	int i;
+	for (i = 0; i < 16; i++) {
+		if (dir_inode.direct_ptr[i] != -1) { //not invalid
+			void* buf = malloc(BLOCK_SIZE);
+			bio_read(sBlock->d_start_blk+dir_inode.direct_ptr[i], buf);
+			struct dirent* listOfDirents = (struct dirent*)buf;
+			for (int j = 0; j < numOfDirents; j++) {
+				// Step 2: Check if fname exist
+				if (listOfDirents[j].valid == 1 && (strcmp(fname,listOfDirents[j].name) == 0)) { //valid bit and file name we are searching for
+					// Step 3: If exist, then remove it from dir_inode's data block and write to disk
+					struct dirent* emptyDir = (struct dirent*)malloc(sizeof(struct dirent));
+					memset(emptyDir,0,sizeof(struct dirent));
+					emptyDir->ino = 0;
+					emptyDir->valid = 0; //new dir is no longer valid because it is empty
+					bio_read(sBlock->d_start_blk+dir_inode.direct_ptr[i],buf);
+					struct dirent* dirList = (struct dirent*)buf;
+					dirList[j] = *emptyDir;
+					bio_write(sBlock->d_start_blk+dir_inode.direct_ptr[i],(void*)dirList); //write new dir list back to block with empty directory
+					free(buf);
+					free(emptyDir);
+				}
+			}
+		}
+	}
 
 	return 0;
 }

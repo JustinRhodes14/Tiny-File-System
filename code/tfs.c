@@ -209,13 +209,6 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 		}
 
 	}
-
-	
-
-
-	
-
-
 	return status;
 }
 
@@ -254,11 +247,19 @@ int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
  * namei operation
  */
 int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
-	
+	char* next;
+	char* head = strtok(path,"/", &next); //strtok(inputString,delimiter,recursivePtr)
+	struct dirent *myDirent = malloc(sizeof(struct dirent));
 	// Step 1: Resolve the path name, walk through path, and finally, find its inode.
-	// Note: You could either implement it in a iterative way or recursive way
+	if(head == NULL){readi(ino,inode); return 0;}
+	if(dir_find(ino,head,strlen(head),myDirent) != 1){
+		//recurse through current directory
+		return get_node_by_path(next,myDirent->ino,inode);}
+	
+	else{return -1;} //failure
 
-	return 0;
+
+	// Note: You could either implement it in a iterative way or recursive way
 }
 
 /* 

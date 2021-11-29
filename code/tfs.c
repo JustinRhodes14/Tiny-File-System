@@ -448,9 +448,8 @@ static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, o
 
 	// Step 1: Call get_node_by_path() to get inode from path
 	struct inode *myInode = malloc(sizeof(struct inode));
-	uint16_t ino = get_node_by_path(path, 0, myInode);
+	get_node_by_path(path, 0, myInode);
 	struct dirent *myDirent = malloc(BLOCK_SIZE);
-	void* myBlock = malloc(BLOCK_SIZE);
 	int myBlockNo = 0;
 	// Step 2: Read directory entries from its data blocks, and copy them to filler
 	int status;
@@ -470,17 +469,38 @@ static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, o
 static int tfs_mkdir(const char *path, mode_t mode) {
 
 	// Step 1: Use dirname() and basename() to separate parent directory path and target directory name
-
+	char* head = strdup(path);
+	char* dirName = dirname(head);
+	char* baseName = basename(head);
 	// Step 2: Call get_node_by_path() to get inode of parent directory
-
+	struct inode* dirNode = (struct inode*)malloc(sizeof(struct inode));
+	int result = get_node_by_path(dirName,0,dirNode); // 0 = root inode num
+	if (result == -1) {
+		return -1;
+	}
 	// Step 3: Call get_avail_ino() to get an available inode number
-
+	int availNo = get_avail_ino();
+	set_bitmap(inode_bits,availNo);
+	bio_write(sBlock->i_bitmap_blk,(void*)inode_bits);
 	// Step 4: Call dir_add() to add directory entry of target directory to parent directory
-
+	dir_add(*dirNode,availNo,baseName,strlen(baseName)+1);
 	// Step 5: Update inode for target directory
-
+	struct inode* newNode = (struct inode*)malloc(sizeof(struct inode));
+	newNode->ino = availNo;
+	newNode->type = FOLDER;
+	newNode->valid = 1;
+	newNode->link = 2;
+	newNode->size = 0;
+	int i;
+	for (i = 0;i < 16; i++) {
+		if (i < 8) {
+			newNode->indirect_ptr[i] = -1;
+		}
+		newNode->direct_ptr[i] = -1; // -1 for invalid
+	}
 	// Step 6: Call writei() to write inode to disk
-	
+	writei(availNo,newNode);
+	free(newNode);
 
 	return 0;
 }

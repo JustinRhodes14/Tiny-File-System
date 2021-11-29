@@ -457,9 +457,12 @@ static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, o
 static int tfs_mkdir(const char *path, mode_t mode) {
 
 	// Step 1: Use dirname() and basename() to separate parent directory path and target directory name
-
+	char* head = strdup(path);
+	char* dirName = dirname(head);
+	char* baseName = basename(head);
 	// Step 2: Call get_node_by_path() to get inode of parent directory
-
+	struct *inode dirNode = (struct inode*)malloc(sizeof(inode));
+	get_node_by_path
 	// Step 3: Call get_avail_ino() to get an available inode number
 
 	// Step 4: Call dir_add() to add directory entry of target directory to parent directory

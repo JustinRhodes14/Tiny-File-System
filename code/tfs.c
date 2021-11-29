@@ -531,11 +531,19 @@ static int tfs_releasedir(const char *path, struct fuse_file_info *fi) {
 static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
 	// Step 1: Use dirname() and basename() to separate parent directory path and target file name
-
+	char* head = strdup(path);
+	char* dirName = dirname(head);
+	char* baseName = basename(head);
 	// Step 2: Call get_node_by_path() to get inode of parent directory
-
+	struct inode* dirNode = (struct inode*)malloc(sizeof(struct inode));
+	int result = get_node_by_path(dirName,0,dirNode); // 0 = root inode num
+	if (result == -1) {
+		return -1;
+	}
 	// Step 3: Call get_avail_ino() to get an available inode number
-
+	int availNo = get_avail_ino();
+	set_bitmap(inode_bits,availNo);
+	bio_write(sBlock->i_bitmap_blk,(void*)inode_bits);
 	// Step 4: Call dir_add() to add directory entry of target file to parent directory
 
 	// Step 5: Update inode for target file

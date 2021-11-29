@@ -31,9 +31,9 @@ char diskfile_path[PATH_MAX];
 struct superblock* sBlock;
 bitmap_t inode_bits;
 bitmap_t data_bits;
+
 uint16_t inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
 int numOfDirents = BLOCK_SIZE/sizeof(struct dirent);
-
 
 /* 
  * Get available inode number from bitmap
@@ -395,14 +395,23 @@ static void tfs_destroy(void *userdata) {
 }
 
 static int tfs_getattr(const char *path, struct stat *stbuf) {
-
+//const char *path, uint16_t ino, struct inode *inode)
+	int NOT_FOUND = -1;
 	// Step 1: call get_node_by_path() to get inode from path
+	struct inode *resNode = (struct inode*)malloc(struct inode);
 
+	int result = get_node_by_path(path,stbuf->st_ino,resNode);
 	// Step 2: fill attribute of file into stbuf from inode
 
-		stbuf->st_mode   = S_IFDIR | 0755;
-		stbuf->st_nlink  = 2;
-		time(&stbuf->st_mtime);
+	if (result == NOT_FOUND) {
+		return NOT_FOUND;
+	}
+
+	if (resNode)
+
+	stbuf->st_mode   = S_IFDIR | 0755;
+	stbuf->st_nlink  = 2;
+	time(&stbuf->st_mtime);
 
 	return 0;
 }

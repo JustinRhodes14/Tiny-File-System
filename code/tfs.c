@@ -453,7 +453,7 @@ static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, o
 	void* myBlock = malloc(BLOCK_SIZE);
 	int myBlockNo = 0;
 	// Step 2: Read directory entries from its data blocks, and copy them to filler
-	int status
+	int status;
 	
 	while(myBlockNo <= 16){
 		if(myInode->direct_ptr[myBlockNo] != 0){

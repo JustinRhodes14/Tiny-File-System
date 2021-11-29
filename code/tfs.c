@@ -197,7 +197,8 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 					*newDirEntry->name = newName;
 					}
 				*/
-				*newDirEntry->name = fname;
+				memset(newDirEntry,'\0',252);
+				strcat(newDirEntry->name,fname);
 				newDirEntry->valid = 1;
 				newDirEntry->ino = f_ino;
 				//dir_inode.direct_ptr[get_avail_ino()] = (struct dirent*) newDirEntry.ino;

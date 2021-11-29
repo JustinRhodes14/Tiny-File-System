@@ -425,8 +425,21 @@ static int tfs_opendir(const char *path, struct fuse_file_info *fi) {
 static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
 
 	// Step 1: Call get_node_by_path() to get inode from path
-
+	struct inode *myInode = malloc(sizeof(struct inode));
+	uint16_t ino = get_node_by_path(path, 0, myInode);
+	struct dirent *myDirent = malloc(BLOCK_SIZE);
+	void* myBlock = malloc(BLOCK_SIZE);
+	int myBlockNo = 0;
 	// Step 2: Read directory entries from its data blocks, and copy them to filler
+	int status
+	
+	while(myBlockNo <= 16){
+		if(myInode->direct_ptr[myBlockNo] != 0){
+			status = bio_read(myInode->direct_ptr[myBlockNo], myDirent); //read into data block
+			if(status != filler(buffer,myDirent->name,NULL,0)){return 0;} //read dir is not null
+			myBlockNo++;
+		}
+	}
 
 	return 0;
 }

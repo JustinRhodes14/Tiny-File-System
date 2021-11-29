@@ -488,17 +488,43 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 static int tfs_rmdir(const char *path) {
 
 	// Step 1: Use dirname() and basename() to separate parent directory path and target directory name
-
+	char* myDirName = dirname(path);
+	char* myBaseName = basename(path);
 	// Step 2: Call get_node_by_path() to get inode of target directory
+	struct inode* myInode = malloc(sizeof(struct inode));
+	if(strcmp(path,"/") == 0){ return -1;}//if root leave
+	if ( (get_node_by_path(path,0,myInode) != 0) || (myInode->type != 1)){
+		free(myInode);
+	}
+	char* myBitmap = malloc(sizeof(char)*BLOCK_SIZE);
+	char* myData = malloc(sizeof(char)*BLOCK_SIZE);
 
+	bio_read(2,myBitmap);
+	
 	// Step 3: Clear data block bitmap of target directory
-
+	int i;
+	for(i=0;i<16;i++){
+		if(myInode->direct_ptr[i] != 0){continue;}
+		bio_read(myInode->direct_ptr[i],myData); //read into myData
+		memset(myData,0,BLOCK_SIZE);
+		bio_write(myInode->direct_ptr[i],myData);
+		unset_bitmap( (bitmap_t) myBitmap, myInode->direct_ptr[i]);
+		myInode->direct_ptr[i] = -1; //invalid
+	}
 	// Step 4: Clear inode bitmap and its data block
-
+	myInode->valid = myInode->type = myInode->link = 0; //can i do this in c....
+	writei(myInode->ino,myInode);
+	bio_read(1,myBitmap);
+	unset_bitmap( (bitmap_t) myBitmap, myInode->ino);
+	bio_write(1,myBitmap);
 	// Step 5: Call get_node_by_path() to get inode of parent directory
-
+	if ( (get_node_by_path(myDirName,0,myInode) != 0) || (myInode->type != 1)){
+		free(myInode);
+		return -1;
+	}
 	// Step 6: Call dir_remove() to remove directory entry of target directory in its parent directory
-
+	dir_remove(*myInode,basename,strlen(basename));
+	free(myInode);
 	return 0;
 }
 

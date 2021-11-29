@@ -208,13 +208,6 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 		}
 
 	}
-
-	
-
-
-	
-
-
 	return status;
 }
 

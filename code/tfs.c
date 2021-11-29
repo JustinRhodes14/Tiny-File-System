@@ -31,9 +31,9 @@ char diskfile_path[PATH_MAX];
 struct superblock* sBlock;
 bitmap_t inode_bits;
 bitmap_t data_bits;
+
 uint16_t inodesPerBlock = BLOCK_SIZE/sizeof(struct inode);
 int numOfDirents = BLOCK_SIZE/sizeof(struct dirent);
-
 
 /* 
  * Get available inode number from bitmap
@@ -247,14 +247,15 @@ int dir_remove(struct inode dir_inode, const char *fname, size_t name_len) {
  * namei operation
  */
 int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
-	char* next;
-	char* head = strtok(path,"/", &next); //strtok(inputString,delimiter,recursivePtr)
+	char* tok = strdup(path);
+	char* head = strtok(tok,"/");
 	struct dirent *myDirent = malloc(sizeof(struct dirent));
 	// Step 1: Resolve the path name, walk through path, and finally, find its inode.
 	if(head == NULL){readi(ino,inode); return 0;}
 	if(dir_find(ino,head,strlen(head),myDirent) != 1){
 		//recurse through current directory
-		return get_node_by_path(next,myDirent->ino,inode);}
+		head = strtok(NULL,"/");
+		return get_node_by_path(head,myDirent->ino,inode);}
 	
 	else{return -1;} //failure
 
@@ -396,14 +397,35 @@ static void tfs_destroy(void *userdata) {
 }
 
 static int tfs_getattr(const char *path, struct stat *stbuf) {
-
+//const char *path, uint16_t ino, struct inode *inode)
+	int NOT_FOUND = -1;
 	// Step 1: call get_node_by_path() to get inode from path
+	struct inode *resNode = (struct inode*)malloc(sizeof(struct inode));
 
+	int result = get_node_by_path(path,stbuf->st_ino,resNode);
 	// Step 2: fill attribute of file into stbuf from inode
 
+	if (result == NOT_FOUND) {
+		return NOT_FOUND;
+	}
+
+	if (resNode->type == FOLDER) {
 		stbuf->st_mode   = S_IFDIR | 0755;
 		stbuf->st_nlink  = 2;
 		time(&stbuf->st_mtime);
+	} else {
+		stbuf->st_mode   = S_IFREG | 0644;
+		stbuf->st_nlink  = 1;
+		stbuf->st_size = resNode->size;
+		time(&stbuf->st_mtime);
+	}
+
+	stbuf->st_uid = getuid();
+	stbuf->st_gid = getgid();
+
+	stbuf->st_mtime = resNode->vstat.st_mtime;
+	stbuf->st_ctime = resNode->vstat.st_ctime;
+	stbuf->st_atime = resNode->vstat.st_atime;
 
 	return 0;
 }

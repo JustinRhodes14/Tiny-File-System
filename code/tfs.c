@@ -649,9 +649,9 @@ static int tfs_unlink(const char *path) {
 	// Step 4: Clear inode bitmap and its data block
 	target->link--;
 	if(target->link <= 0){
-		unset_bitmap(inode_bits,target->ino);
-		bio_write(sBlock->d_bitmap_blk,(void*)data_bits);
-		target->valid = 0; //was this 0 or -1?
+		unset_bitmap(inode_bits,target->ino); //unset...
+		bio_write(sBlock->d_bitmap_blk,(void*)data_bits); //write from superblock->data_bits bitmap
+		target->valid = 0; //was this 0 or -1? //mark as invaild
 	}
 	writei(target->ino,target);
 	// Step 5: Call get_node_by_path() to get inode of parent directory

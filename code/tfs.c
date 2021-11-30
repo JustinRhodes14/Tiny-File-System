@@ -135,7 +135,7 @@ int dir_find(uint16_t ino, const char *fname, size_t name_len, struct dirent *di
   //If the name matches, then copy directory entry to dirent structure'
 	for(i=0;i<16;i++){ //Iterate through the List of pointers
 		const int myBlockNumber = sBlock->d_start_blk+myNode.direct_ptr[i]; 
-		if(myNode.direct_ptr[i] != -1){ //If valid...
+		if(myNode.direct_ptr[i] != 0){ //If valid...
 			bio_read(myBlockNumber,buf); //...read into the buffer
 			struct dirent* listOfDirents = (struct dirent*) buf; //Make a list of DIRECTORY ENTRIES. This is within direct_ptr[i].
 			//New FOR loop:
@@ -269,20 +269,64 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
 int tfs_mkfs() {
 
 	// Call dev_init() to initialize (Create) Diskfile
-
-	// write superblock information
-
-	// initialize inode bitmap
-
-	// initialize data block bitmap
-
-	// update bitmap information for root directory
-
-	// update inode for root directory
-
 	dev_init(diskfile_path);
-
+	// write superblock information
+	inode_bits = (bitmap_t)malloc(BLOCK_SIZE);
+	data_bits = (bitmap_t)malloc(BLOCK_SIZE);
 	sBlock = (struct superblock*)malloc(BLOCK_SIZE);
+	// initialize inode bitmap
+	int i;
+	for (i = 0; i < MAX_INUM; i++) {
+		inode_bits = 0;
+	}
+	for (i = 0; i < MAX_DNUM; i++) {
+		data_bits = 0;
+	}
+	sBlock->magic_num = MAGIC_NUM;
+	sBlock->max_inum = MAX_INUM;
+	sBlock->max_dnum = MAX_DNUM;
+	sBlock->i_bitmap_blk = 0;
+	sBlock->d_bitmap_blk = 1;
+	sBlock->i_start_blk = 2;
+	sBlock->d_start_blk = 67; //arbitary? not sure if this matters --> MAX_INUM/(BLOCK/256)
+	bio_write(sBlock->i_bitmap_blk,(void*)inode_bits);
+	// initialize data block bitmap
+	bio_write(sBlock->d_bitmap_blk,(void*)data_bits);
+	// update bitmap information for root directory
+	bio_write(0,(void*)sBlock);
+	// update inode for root directory
+	for (i = 1; i < MAX_INUM; i++) {
+		struct inode* node = (struct inode*)malloc(sizeof(struct inode));
+		memset(node,0,sizeof(struct inode));
+		node->valid = -1; // invalid
+		int j;
+		for (j = 0; j < 16; j++) {
+			if (j < 8) {
+				node->indirect_ptr[j] = 0;
+			}
+			node->direct_ptr[j] = 1;
+		}
+
+		node->ino = i;
+		writei(node->ino,node);
+		free(node);
+	}
+
+	struct inode* root = (struct inode*)malloc(sizeof(struct inode));
+	root->ino = 0;
+	root->type = FOLDER;
+	root->valid = 1;
+	root->size = 0;
+	root->link = 2;
+	for (i = 0; i < 16; i++) {
+			if (i < 8) {
+				root->indirect_ptr[i] = 0;
+			}
+			root->direct_ptr[i] = 1;
+	}
+
+	writei(0,root);
+	free(root);
 
 	return 0;
 }
@@ -426,9 +470,9 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	int i;
 	for (i = 0;i < 16; i++) {
 		if (i < 8) {
-			newNode->indirect_ptr[i] = -1;
+			newNode->indirect_ptr[i] = 0;
 		}
-		newNode->direct_ptr[i] = -1; // -1 for invalid
+		newNode->direct_ptr[i] = 0; // 0 for invalid
 	}
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);
@@ -462,7 +506,7 @@ static int tfs_rmdir(const char *path) {
 		memset(myData,0,BLOCK_SIZE);
 		bio_write(myInode->direct_ptr[i],myData);
 		unset_bitmap( (bitmap_t) myBitmap, myInode->direct_ptr[i]);
-		myInode->direct_ptr[i] = -1; //invalid
+		myInode->direct_ptr[i] = 0; //invalid
 	}
 	// Step 4: Clear inode bitmap and its data block
 	myInode->valid = myInode->type = myInode->link = 0; //can i do this in c....
@@ -516,9 +560,9 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 	int i;
 	for (i = 0;i < 16; i++) {
 		if (i < 8) {
-			newNode->indirect_ptr[i] = -1;
+			newNode->indirect_ptr[i] = 0;
 		}
-		newNode->direct_ptr[i] = -1; // -1 for invalid
+		newNode->direct_ptr[i] = 0; // 0 for invalid
 	}
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);

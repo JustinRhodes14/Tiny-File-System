@@ -546,12 +546,12 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 	// Step 1: You could call get_node_by_path() to get inode from path
 	struct inode* myInode = malloc(sizeof(struct inode));
 	void* temp = malloc(BLOCK_SIZE);
-	int status = get_node_by_path(path,0,myInode);
+	get_node_by_path(path,0,myInode);
 	// Step 2: Based on size and offset, read its data blocks from disk
 	int offdivblock = offset/BLOCK_SIZE;
 	if(offdivblock < 16){
 		if (!(myInode->direct_ptr[offdivblock])){ //if does not exist...
-			myInode->direct_ptr[offdivblock] = get_avail_blkno;} //let it be first avail blkno
+			myInode->direct_ptr[offdivblock] = get_avail_blkno();} //let it be first avail blkno
 		bio_read(myInode->direct_ptr[offdivblock],temp);
 		memcpy(temp,buffer,size);
 		myInode->size += size; //iterate by siz
@@ -565,17 +565,23 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 
 static int tfs_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
 	// Step 1: You could call get_node_by_path() to get inode from path
-	struct inode* node = (struct inode*)malloc(sizeof(inode));
+	struct inode* node = (struct inode*)malloc(sizeof(struct inode));
 	int result = get_node_by_path(path,0,node);
 	if (result == -1) {
 		return 0; // do nothing, no item found
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
-
+	int offsetBlock = offset/BLOCK_SIZE;
+	if (offsetBlock < 16) {
+		if (!(node->direct_ptr[offsetBlock])) {
+			node->direct_ptr[offsetBlock] = get_avail_blkno();
+		}
 	// Step 3: Write the correct amount of data from offset to disk
+		bio_write(node->direct_ptr[offsetBlock],buffer);
+	}
 
 	// Step 4: Update the inode info and write it to disk
-
+	writei(node->ino,node);
 	// Note: this function should return the amount of bytes you write to disk
 	return size;
 }

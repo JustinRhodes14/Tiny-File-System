@@ -280,78 +280,10 @@ int tfs_mkfs() {
 
 	// update inode for root directory
 
-/*
 	dev_init(diskfile_path);
 
 	sBlock = (struct superblock*)malloc(BLOCK_SIZE);
-	inode_bits = (bitmap_t)malloc(BLOCK_SIZE);
-	data_bits = (bitmap_t)malloc(BLOCK_SIZE);
-	memset(inode_bits,0,BLOCK_SIZE);
-	memset(data_bits,0,BLOCK_SIZE);
 
-	int i;
-	for (i = 1; i < MAX_INUM; i++) { //start at 1 for root inode
-		struct inode* node = malloc(sizeof(struct inode));
-		memset(node,0,sizeof(struct inode));
-		node->valid = 0; //0 for invalid
-
-		int j;
-		for (j = 0; j < 16; j++) {
-			node->direct_ptr[j] = 0;
-		}
-
-		for (j = 0; j < 8; j++) {
-			node->indirect_ptr[j] = 0;
-		}
-		node->ino = i;
-
-		writei(i,node);
-		free(node);
-	}
-
-	sBlock->magic_num = MAGIC_NUM;
-	sBlock->max_inum = MAX_INUM;
-	sBlock->max_dnum = MAX_DNUM;
-	sBlock->i_bitmap_blk = 1; //starting address for block
-	sBlock->d_bitmap_blk = sBlock->i_bitmap_blk+1;
-	sBlock->i_start_blk = sBlock->d_bitmap_blk+1;
-	sBlock->d_start_blk = sBlock->i_start_blk+129; //128 inode blocks + 1 (starting block)
-	bio_write(0,(void*)sBlock);
-	set_bitmap(inode_bits,0);
-	bio_write(sBlock->i_bitmap_blk,(void*)inode_bits);
-	bio_write(sBlock->d_bitmap_blk,(void*)data_bits);
-
-	struct inode* root = malloc(sizeof(struct inode));
-	memset(root,0,sizeof(struct inode));
-	root->ino = 0;
-	root->type = FOLDER;
-	root->valid = 1;
-	root->size = 0;
-	root->link = 2 // 2 links because current points to the inode
-
-	int g;
-	for (g = 0; g < 16; g++) {
-		node->direct_ptr[j] = 0;
-	}
-
-	for (g = 0; g < 8; g++) {
-		node->indirect_ptr[j] = 0;
-	}
-
-	time(&(root->vstat.st_atime));
-	time(&(root->vstat.st_mtime));
-	time(&(root->vstat.st_ctime));
-
-	int avail_block = get_avail_blkno;
-	set_bitmap(data_bits,avail_block);
-	bio_write(sBlock->d_bitmap_blk,(void*)data_bits);
-	root->direct_ptr[0] = avail_block;
-	//somewhat confused, come back
-	writei(0,root);
-	dir_add(*root,root,".",2);
-	free(root);
-	
-*/
 	return 0;
 }
 
@@ -623,7 +555,11 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 
 static int tfs_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
 	// Step 1: You could call get_node_by_path() to get inode from path
-
+	struct inode* node = (struct inode*)malloc(sizeof(inode));
+	int result = get_node_by_path(path,0,node);
+	if (result == -1) {
+		return 0; // do nothing, no item found
+	}
 	// Step 2: Based on size and offset, read its data blocks from disk
 
 	// Step 3: Write the correct amount of data from offset to disk

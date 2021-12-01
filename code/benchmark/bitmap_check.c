@@ -10,7 +10,7 @@
 #include <dirent.h>
 
 /* You need to change this macro to your TFS mount point*/
-#define TESTDIR "/tmp/mountdir"
+#define TESTDIR "../tmp/jgr85/mountdir"
 
 #define N_FILES 100
 #define BLOCKSIZE 4096
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 
 	bitmap = malloc(BLOCKSIZE);
 
-	diskfile = open("DISKFILE", O_RDWR, S_IRUSR | S_IWUSR);
+	diskfile = open("../DISKFILE", O_RDWR, S_IRUSR | S_IWUSR);
 	if (diskfile < 0) {
 		perror("disk_open failed");
 		return -1;

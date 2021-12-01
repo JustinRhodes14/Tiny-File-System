@@ -267,7 +267,7 @@ int get_node_by_path(const char *path, uint16_t ino, struct inode *inode) {
  * Make file system
  */
 int tfs_mkfs() {
-
+	printf("we made it\n");
 	// Call dev_init() to initialize (Create) Diskfile
 	dev_init(diskfile_path);
 	// write superblock information
@@ -336,7 +336,7 @@ int tfs_mkfs() {
  * FUSE file operations
  */
 static void *tfs_init(struct fuse_conn_info *conn) {
-
+	printf("we made it2\n");
 	// Step 1a: If disk file is not found, call mkfs
 
   // Step 1b: If disk file is found, just initialize in-memory data structures
@@ -531,7 +531,7 @@ static int tfs_releasedir(const char *path, struct fuse_file_info *fi) {
 }
 
 static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-
+	printf("we made it3\n");
 	// Step 1: Use dirname() and basename() to separate parent directory path and target file name
 	char* head = strdup(path);
 	char* dirName = dirname(head);
@@ -717,7 +717,7 @@ int main(int argc, char *argv[]) {
 	strcat(diskfile_path, "/DISKFILE");
 
 	fuse_stat = fuse_main(argc, argv, &tfs_ope, NULL);
-
+	printf("diskfile: %s\n",diskfile_path);
 	return fuse_stat;
 }
 

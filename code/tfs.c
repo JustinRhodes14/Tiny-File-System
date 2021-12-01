@@ -341,10 +341,9 @@ static void *tfs_init(struct fuse_conn_info *conn) {
 
   // Step 1b: If disk file is found, just initialize in-memory data structures
   // and read superblock from disk
-
 	int fd = dev_open(diskfile_path); //open diskfile, to be read into superblock
 
-	if (fd == -1) {
+	if (fd < 0) {
 		tfs_mkfs();
 	}
 

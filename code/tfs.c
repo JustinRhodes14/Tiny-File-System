@@ -381,7 +381,8 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 	// Step 2: fill attribute of file into stbuf from inode
 
 	if (result == NOT_FOUND) {
-		return NOT_FOUND;
+		printf("olord\n");
+		return -ENOENT;
 	}
 	if (resNode->type == FOLDER) {
 		stbuf->st_mode = S_IFDIR | 0755;
@@ -451,10 +452,7 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	char* baseName = basename(head);
 	// Step 2: Call get_node_by_path() to get inode of parent directory
 	struct inode* dirNode = (struct inode*)malloc(sizeof(struct inode));
-	int result = get_node_by_path(dirName,0,dirNode); // 0 = root inode num
-	if (result == -1) {
-		return -1;
-	}
+	get_node_by_path(dirName,0,dirNode); // 0 = root inode num
 	// Step 3: Call get_avail_ino() to get an available inode number
 	int availNo = get_avail_ino();
 	set_bitmap(inode_bits,availNo);
@@ -479,10 +477,10 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	time(&(newNode->vstat.st_ctime));
 	time(&(newNode->vstat.st_atime));
 	// Step 6: Call writei() to write inode to disk
+	writei(availNo,newNode);
 	dir_add(*newNode,availNo,".",2);
 	readi(availNo,newNode);
 	dir_add(*newNode,dirNode->ino,"..",3);
-	writei(availNo,newNode);
 	free(newNode);
 
 	return 0;

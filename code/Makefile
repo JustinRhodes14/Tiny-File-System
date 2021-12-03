@@ -14,3 +14,6 @@ tfs: $(OBJ)
 clean:
 	rm -f *.o tfs
 
+test:
+	make clean; make; fusermount -u /tmp/jgr85/mountdir; rm DISKFILE; ./tfs -d /tmp/jgr85/mountdir
+

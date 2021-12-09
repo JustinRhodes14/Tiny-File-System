@@ -644,36 +644,34 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 	// Step 1: You could call get_node_by_path() to get inode from path
 	struct inode* myInode = malloc(sizeof(struct inode));
 	void* buf;
-	int result = get_node_by_path(path,0,myInode);
-	if (result == -1) {
+	if (get_node_by_path(path,0,myInode) == -1) {
 		return -ENOENT;
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
 	int offdivblock = offset / BLOCK_SIZE;
-	int oOffset = offdivblock +1;
+	int lim = offdivblock +1;
+	if (myInode->direct_ptr[0] == INVALID) {
+		return 0; // no block exists
+	}
 	int i;
-	for (i = 0; i < oOffset; i++) {
-		if (myInode->direct_ptr[i] == INVALID) {
-			return 0;
-		}
+	for (i = 0; i < lim; i++) {
 		buf = malloc(BLOCK_SIZE);
 		int blockNo = sBlock->d_start_blk + myInode->direct_ptr[offdivblock];
 		bio_read(blockNo,buf);
+		void* readLoc = buffer + (i*BLOCK_SIZE);
+		// Step 3: copy the correct amount of data from offset to buffer
 		if (size < BLOCK_SIZE) {
-			memcpy((buffer + (i*BLOCK_SIZE)), buf, size);
-			bytes+= size;
+			bytes += size;
 			size = 0;
+			memcpy(readLoc, buf, size);
 		} else {
-			memcpy((buffer + (i*BLOCK_SIZE)), buf, BLOCK_SIZE);
-			size -= BLOCK_SIZE;
 			bytes += BLOCK_SIZE;
+			size = size - BLOCK_SIZE;
+			memcpy(readLoc, buf, BLOCK_SIZE);
 		}
-		free(buf);
-		offset = 0;
 		offdivblock++;
+		free(buf);
 	}
-	time(&(myInode->vstat.st_atime));
-	writei(myInode->ino,myInode);
 	free(myInode);
 	return bytes; //else ret 0
 }
@@ -683,60 +681,57 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 	void* buf;
 	// Step 1: You could call get_node_by_path() to get inode from path
 	struct inode* node = (struct inode*)malloc(sizeof(struct inode));
-	int result = get_node_by_path(path,0,node);
-	if (result == -1) {
+	if (get_node_by_path(path,0,node) == -1) {
 		return -ENOENT; // do nothing, no item found
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
-	//int blockSize = ceil(size/BLOCK_SIZE);
 	int offsetBlock = offset / BLOCK_SIZE;
 	int oOffset = offsetBlock + 1;
 	int i;
 	for (i = 0; i < oOffset; i++) {
 		int blockNo = sBlock->d_start_blk + node->direct_ptr[offsetBlock];
+		void* writeLoc = (char*)buffer + (i*BLOCK_SIZE);
+		buf = malloc(BLOCK_SIZE);
 		if (node->direct_ptr[offsetBlock] == INVALID) {
 			node->direct_ptr[offsetBlock] = get_avail_blkno();
-			buf = malloc(BLOCK_SIZE);
 			if (size < (int)BLOCK_SIZE) {
-				memcpy(buf, (buffer + (i*BLOCK_SIZE)),size);
 				bytes+= size;
 				size = 0;
 				node->size = size;
+				memcpy(buf, writeLoc,size);
 			} else {
-				memcpy(buf, (buffer + i*BLOCK_SIZE),BLOCK_SIZE);
 				bytes+= BLOCK_SIZE;
-				size-=BLOCK_SIZE;
+				size = size - BLOCK_SIZE;
 				node->size += BLOCK_SIZE;
+				memcpy(buf, writeLoc,BLOCK_SIZE);
 			}
-			bio_write(blockNo,buf);
-			free(buf);
 		} else {
-			buf = malloc(BLOCK_SIZE);
 			bio_read(blockNo,buf);
+			void* writeOffset = buf + (offset % BLOCK_SIZE);
 			if (size < BLOCK_SIZE) {
-				memcpy(buf + (offset % BLOCK_SIZE), (buffer + (i*BLOCK_SIZE)),size);
+				memcpy(writeOffset, writeLoc,size);
 				if (size + offset <= strlen((char*)buf)) {
-					memset(buf + (offset % BLOCK_SIZE) + size, '\0', BLOCK_SIZE - size - offset);
+					memset(writeOffset + size, '\0', BLOCK_SIZE - size - offset);
 				}
 				bytes += size;
 				size = 0;
 				node->size = size;
 			} else {
-				memcpy(buf + (offset % BLOCK_SIZE), (buffer + (i*BLOCK_SIZE)),BLOCK_SIZE);
-				size-= BLOCK_SIZE;
 				bytes += BLOCK_SIZE;
+				size = size - BLOCK_SIZE;
 				node->size += BLOCK_SIZE;
+				memcpy(writeOffset, writeLoc,BLOCK_SIZE);
 			}
-			bio_write(blockNo,buf);
-			free(buf);
 		}
+		// Step 3: Write the correct amount of data from offset to disk
+		bio_write(blockNo,buf);
 		offset = 0;
 		offsetBlock++;
+		free(buf);
 	}
+	// Step 4: Update the inode and write it to disk
 	time(&(node->vstat.st_mtime));
 	writei(node->ino,node);
-	// Step 3: Write the correct amount of data from offset to disk
-	
 	// Note: this function should return the amount of bytes you write to disk
 	return bytes;
 }
@@ -755,7 +750,7 @@ static int tfs_unlink(const char *path) {
 		return -ENOENT;
 	}
 	// Step 3: Clear data block bitmap of target file
-	target->link--;
+	target->link = 0;
 	int i;
 	for(i=0;i<16;i++){
 		if(target->direct_ptr[i] != INVALID){unset_bitmap(data_bits,target->direct_ptr[i]);}
@@ -770,13 +765,13 @@ static int tfs_unlink(const char *path) {
 	}
 	writei(target->ino,target);
 	// Step 5: Call get_node_by_path() to get inode of parent directory
-	struct inode parent;
-	result = get_node_by_path(dirName,0,&parent);
+	struct inode* parent = (struct inode*)malloc(sizeof(struct inode));
+	result = get_node_by_path(dirName,0,parent);
 	if (result == -1) {
 		return -ENOENT;
 	}
 	// Step 6: Call dir_remove() to remove directory entry of target file in its parent directory
-	dir_remove(parent,baseName,strlen(baseName)+1);
+	dir_remove(*parent,baseName,strlen(baseName)+1);
 	return 0;
 }
 

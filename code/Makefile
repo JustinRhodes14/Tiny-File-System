@@ -20,3 +20,5 @@ test:
 debug: 
 	make clean; make; fusermount -u /tmp/jgr85/mountdir; rm DISKFILE; gdb tfs;
 
+cleaner:
+	make clean; cd benchmark && make clean;cd ..; rm DISKFILE; fusermount -u /tmp/jgr85/mountdir;

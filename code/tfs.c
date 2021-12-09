@@ -461,7 +461,6 @@ static int tfs_opendir(const char *path, struct fuse_file_info *fi) {
 }
 
 static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
-
 	// Step 1: Call get_node_by_path() to get inode from path
 	struct inode *myInode = malloc(sizeof(struct inode));
 	get_node_by_path(path, 0, myInode);
@@ -475,7 +474,7 @@ static int tfs_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, o
 		for (j = 0; j < numOfDirents; j++) {
 			if (myDirent[j].valid == VALID) {
 				filler(buffer, myDirent[j].name, NULL, 0);
-				if ( i == 0 && j == 0) {
+				if (i == 0 && j == 0 && (strcmp(path,"/") == 0)) {
 					filler(buffer,"..",NULL,0);
 				}
 			}
@@ -529,6 +528,8 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);
 	dir_add(*newNode,availNo,".",2);
+	readi(availNo,newNode);
+	dir_add(*newNode,dirNode->ino,"..",3);
 	free(newNode);
 
 	return 0;
@@ -632,16 +633,10 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 
 static int tfs_open(const char *path, struct fuse_file_info *fi) {
 
-	int status = -1;
 	// Step 1: Call get_node_by_path() to get inode from path
 	struct inode* node = (struct inode *)malloc(sizeof(struct inode));
 	// Step 2: If not find, return -1
-	if (get_node_by_path(path,0,node) == 0) { // 0 is root inode number
-		status = 0;
-	}
-	free(node);
-
-	return status;
+	return get_node_by_path(path,0,node);
 }
 
 static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
@@ -654,18 +649,28 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 		return -ENOENT;
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
-	int offdivblock = offset % BLOCK_SIZE;
+	int offdivblock = offset / BLOCK_SIZE;
+	int oOffset = offdivblock +1;
 	int i;
-	for (i = 0; i < 16; i++) {
+	printf("size: %d\n",size);
+	for (i = 0; i < oOffset; i++) {
 		if (myInode->direct_ptr[i] == INVALID) {
-			continue;
+			return 0;
 		}
 		buf = malloc(BLOCK_SIZE);
 		int blockNo = sBlock->d_start_blk + myInode->direct_ptr[offdivblock];
 		bio_read(blockNo,buf);
+		if (size < BLOCK_SIZE) {
+			memcpy((buffer + (i*BLOCK_SIZE)), buf, size);
+			bytes+= size;
+			size = 0;
+		} else {
+			memcpy((buffer + (i*BLOCK_SIZE)), buf, BLOCK_SIZE);
+			size -= BLOCK_SIZE;
+			bytes += BLOCK_SIZE;
+		}
 		free(buf);
-		bytes+= size;
-		size = 0;
+		offset = 0;
 		offdivblock++;
 	}
 	time(&(myInode->vstat.st_atime));
@@ -685,24 +690,52 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
 	//int blockSize = ceil(size/BLOCK_SIZE);
-	int offsetBlock = offset % BLOCK_SIZE;
+	int offsetBlock = offset / BLOCK_SIZE;
+	int oOffset = offsetBlock++;
 	int blockNo = sBlock->d_start_blk + node->direct_ptr[offsetBlock];
-	if (node->direct_ptr[offsetBlock] == INVALID) {
-		node->direct_ptr[offsetBlock] = get_avail_blkno();
-		buf = malloc(BLOCK_SIZE);
-		strcpy(buf,buffer);
-		bio_write(blockNo,buf);
-		
-	} else {
-		buf = malloc(BLOCK_SIZE);
-		bio_read(blockNo,buf);
-		bytes = size;
-		node->size = size;
-		bio_write(blockNo,buf);
+	int i;
+	for (i = 0; i < oOffset; i++) {
+		if (node->direct_ptr[offsetBlock] == INVALID) {
+			node->direct_ptr[offsetBlock] = get_avail_blkno();
+			buf = malloc(BLOCK_SIZE);
+			if (size < BLOCK_SIZE) {
+				memcpy(buf, (buffer + (i*BLOCK_SIZE)),size);
+				bytes+= size;
+				size = 0;
+				node->size = size;
+			} else {
+				memcpy(buf, (buffer + i*BLOCK_SIZE),BLOCK_SIZE);
+				bytes+= BLOCK_SIZE;
+				size-=BLOCK_SIZE;
+				node->size += BLOCK_SIZE;
+			}
+			bio_write(blockNo,buf);
+			free(buf);
+		} else {
+			buf = malloc(BLOCK_SIZE);
+			bio_read(blockNo,buf);
+			if (size < BLOCK_SIZE) {
+				memcpy(buf + (offset % BLOCK_SIZE), (buffer + (i*BLOCK_SIZE)),size);
+				if (size + offset <= strlen((char*)buf)) {
+					memset(buf + (offset % BLOCK_SIZE) + size, '\0', BLOCK_SIZE - size - offset);
+				}
+				bytes += size;
+				size = 0;
+				node->size = size;
+			} else {
+				memcpy(buf + (offset % BLOCK_SIZE), (buffer + (i*BLOCK_SIZE)),BLOCK_SIZE);
+				size-= BLOCK_SIZE;
+				bytes += BLOCK_SIZE;
+				node->size += BLOCK_SIZE;
+			}
+			bio_write(blockNo,buf);
+			free(buf);
+		}
+		offset = 0;
+		offsetBlock++;
 	}
 	time(&(node->vstat.st_mtime));
 	writei(node->ino,node);
-	free(buf);
 	// Step 3: Write the correct amount of data from offset to disk
 	
 	// Note: this function should return the amount of bytes you write to disk

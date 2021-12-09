@@ -2,8 +2,8 @@
 Ashank Punj, ap1635 | Justin Rhodes, jgr85
 
 2.	Benchmarking Information
-a.	The total number of blocks used on sample benchmark was:
-b.	The amount of time it took to run the benchmark was:
+a.	The total number of blocks used on sample benchmark was:104
+b.	The amount of time it took to run the benchmark was: 200 ms (estimate)
 
 3.	Implementation:
 a.	get_avail_ino
@@ -48,13 +48,13 @@ o.	tfs_mkdir
 p.	tfs_rmdir
 	 	After the inode is obtained, we check if the path is root, or if it’s null or has a type that isn’t 1. To clear the data-block bitmap, we run a loop through each pointer in inode->direct_ptr[] and read it into a char* myData. We set myData to 0 with memset, and write from myData back into the location in the direct-pointer array, before declaring it invalid and unsetting the bitmap. To clear the inode bitmap, we zero-out all the inode’s parameters, including validity, write these new changes to the inode number, read and unset the bitmap, and then write our new results back into the bitmap. We then clear the parent directory by freeing the inode and calling dir_remove() on the inode with the basename for the length of the basename string.
 q.	tfs_create
-	 	
+	 	Upon creation of a file, we get the node by its path for the parent directory, and from there, we find the most recent inode, update our bitmap, then add the parent directory to be the parent of said file. We then update the inode with the new data, updating all attributes. We update the stats of the file, and write it to disk, as well as call tfs_write on the file to prime it for future write additions.
 r.	tfs_open
 	 	We initialize our status to -1 (“not found”). Using get_node_by_path, we find if 0 is the root inode number of our inode from the path or not. If so, we set status to one, and return that value at the end.
 s.	tfs_read
 	 	Get_node_by_path is used to get the inode from the parameter bath. Then, the the offset parameter divided by the blocksize is used to determine if it is within the proper bounds (under 16). If so, we check if the pointer at that location exists, and let it be the first available block-number if so using get_avail_blkno(). We read it into a temp value, copy that into the buffer, increment the size of our inode from earlier by the parameter size, then write this into the inode, and return the final size (# of bytes).
 t.	tfs_write
-	 	
+	 	We follow through the steps in this function, and we find the data bloicks to read based on the offset. From here, if we can't find an available data block, we must allocate one for the given inode. If data block exists, then we can simply read the block and write to the buffer. One we have the data block, we then copy the memory from the buffer to write location. And we update our byte size accordingly. For larger writes, we loop through until the write is complete. In our last step, we update the inode stats and write it to disk.
 u.	tfs_unlink
 	 	The target is allocated, and then the inode is obtained using get_node_by_path and the parameter path. Then, for every pointer in the target node, the bitmap is unset and bio_write is used to update the bitmap accordingly. Then, the incode is cleared by unsetting it, updating the bitmap, and declaring it as invalid. Get_node_by_path is used to get the inode of the parent, before dir_remove is used to remove the target’s parent directory’s entry.
 		

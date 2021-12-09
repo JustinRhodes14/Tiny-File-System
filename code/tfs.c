@@ -627,7 +627,7 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);
 	free(newNode);
-
+	tfs_write(path,"temp",5,0,fi);
 	return 0;
 }
 
@@ -652,7 +652,6 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 	int offdivblock = offset / BLOCK_SIZE;
 	int oOffset = offdivblock +1;
 	int i;
-	printf("size: %d\n",size);
 	for (i = 0; i < oOffset; i++) {
 		if (myInode->direct_ptr[i] == INVALID) {
 			return 0;
@@ -691,14 +690,14 @@ static int tfs_write(const char *path, const char *buffer, size_t size, off_t of
 	// Step 2: Based on size and offset, read its data blocks from disk
 	//int blockSize = ceil(size/BLOCK_SIZE);
 	int offsetBlock = offset / BLOCK_SIZE;
-	int oOffset = offsetBlock++;
-	int blockNo = sBlock->d_start_blk + node->direct_ptr[offsetBlock];
+	int oOffset = offsetBlock + 1;
 	int i;
 	for (i = 0; i < oOffset; i++) {
+		int blockNo = sBlock->d_start_blk + node->direct_ptr[offsetBlock];
 		if (node->direct_ptr[offsetBlock] == INVALID) {
 			node->direct_ptr[offsetBlock] = get_avail_blkno();
 			buf = malloc(BLOCK_SIZE);
-			if (size < BLOCK_SIZE) {
+			if (size < (int)BLOCK_SIZE) {
 				memcpy(buf, (buffer + (i*BLOCK_SIZE)),size);
 				bytes+= size;
 				size = 0;

@@ -52,6 +52,7 @@ struct dirent {
 	char name[252];					/* name of the directory entry */
 };
 
+static int tfs_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *fi);
 
 /*
  * bitmap operations

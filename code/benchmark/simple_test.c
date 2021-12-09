@@ -14,7 +14,7 @@
 #define N_FILES 100
 #define BLOCKSIZE 4096
 #define FSPATHLEN 256
-#define ITERS 100
+#define ITERS 10
 #define FILEPERM 0666
 #define DIRPERM 0755
 
@@ -32,14 +32,13 @@ int main(int argc, char **argv) {
 	}
 	printf("TEST 1: File create Success \n");
 
-
 	/* Perform sequential writes */
 	for (i = 0; i < ITERS; i++) {
 		//memset with some random data
 		memset(buf, 0x61 + i, BLOCKSIZE);
 
 		if (write(fd, buf, BLOCKSIZE) != BLOCKSIZE) {
-			printf("TEST 2: File write failure \n");
+			printf("TEST 2: File write failure 1\n");
 			exit(1);
 		}
 	}

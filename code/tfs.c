@@ -394,14 +394,13 @@ static int tfs_getattr(const char *path, struct stat *stbuf) {
 	if (get_node_by_path(path,0,resNode) == NOT_FOUND) {
 		return -ENOENT;
 	}
-	if (resNode->type == FOLDER) {
-		stbuf->st_mode = S_IFDIR | 0755;
-		stbuf->st_nlink = 2;
-		time(&stbuf->st_mtime);
-	} else {
+	if (resNode->type == FILE) {
 		stbuf->st_mode = S_IFREG | 0644;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = resNode->size;
+	} else {
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
 	}
 	stbuf->st_uid = getuid();
 	stbuf->st_gid = getgid();

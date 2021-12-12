@@ -57,6 +57,3 @@ t.	tfs_write
 	 	We follow through the steps in this function, and we find the data bloicks to read based on the offset. From here, if we can't find an available data block, we must allocate one for the given inode. If data block exists, then we can simply read the block and write to the buffer. One we have the data block, we then copy the memory from the buffer to write location. And we update our byte size accordingly. For larger writes, we loop through until the write is complete. In our last step, we update the inode stats and write it to disk.
 u.	tfs_unlink
 	 	The target is allocated, and then the inode is obtained using get_node_by_path and the parameter path. Then, for every pointer in the target node, the bitmap is unset and bio_write is used to update the bitmap accordingly. Then, the incode is cleared by unsetting it, updating the bitmap, and declaring it as invalid. Get_node_by_path is used to get the inode of the parent, before dir_remove is used to remove the target’s parent directory’s entry.
-		
-4.	Special Compiling Instructions:
-	a.	(if needed)

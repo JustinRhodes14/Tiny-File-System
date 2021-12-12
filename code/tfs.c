@@ -616,44 +616,43 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 
 static int tfs_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
 	int bytes = 0;
-	void* buf;
-	// Step 1: You could call get_node_by_path() to get inode from path
-	struct inode* node = (struct inode*)malloc(sizeof(struct inode));
-	if (get_node_by_path(path,0,node) == -1) {
-		return -ENOENT; // do nothing, no item found
-	}
-	// Step 2: Based on size and offset, read its data blocks from disk
-	int offsetBlock = offset / BLOCK_SIZE;
-	int oOffset = offsetBlock + 1;
-	int i = 0;
-	while (i < oOffset) {
-		int blockNo = sBlock->d_start_blk + node->direct_ptr[offsetBlock];
-		int currBytes = (size < BLOCK_SIZE) ? size : BLOCK_SIZE;
+    void* buf;
+    struct inode* node = (struct inode*)malloc(sizeof(struct inode));
+    if (get_node_by_path(path,0,node) == -1) {
+        return -ENOENT;
+    }
+
+    int offsetBlock = offset / BLOCK_SIZE;
+    int oOffset = offsetBlock + 1;
+    int i = 0;
+    while (i < oOffset && size >= 0) {
+        int blockNo = sBlock->d_start_blk + node->direct_ptr[offsetBlock];
+		void* writeOffset;
+		size_t currBytes = (size < BLOCK_SIZE) ? size : BLOCK_SIZE;
 		buf = malloc(BLOCK_SIZE);
 		if (node->direct_ptr[offsetBlock] == INVALID) {
 			node->direct_ptr[offsetBlock] = get_avail_blkno();
 			set_bitmap(data_bits,node->direct_ptr[offsetBlock]);
 			bio_write(sBlock->d_bitmap_blk,data_bits);
-			memcpy(buf, buffer,currBytes);
-		} else { // we are appending to file
+			memcpy(buf,buffer,currBytes);
+		} else {
 			bio_read(blockNo,buf);
-			void* writeOffset = buf + (offset % BLOCK_SIZE);
-			memcpy(writeOffset, buffer,currBytes);
+			writeOffset = buf + (offset % BLOCK_SIZE);
+			memcpy(writeOffset,buffer,currBytes);
+			if (size < BLOCK_SIZE && size + offset <= strlen((char*)buf)) {
+				memset(writeOffset + size, '\0', BLOCK_SIZE - size - offset);
+			}
 		}
-		bytes+= currBytes;
+		bytes += currBytes;
+		size -= currBytes;
 		bio_write(blockNo,buf);
 		offsetBlock++;
-		offset = 0;
 		i++;
-		size -= currBytes;
 		free(buf);
-	}
-		// Step 3: Write the correct amount of data from offset to disk
-	// Step 4: Update the inode and write it to disk
+    }
 	node->size += bytes;
 	time(&(node->vstat.st_mtime));
 	writei(node->ino,node);
-	// Note: this function should return the amount of bytes you write to disk
 	return bytes;
 }
 

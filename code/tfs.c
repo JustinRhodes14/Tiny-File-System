@@ -152,6 +152,7 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 	int loopStatus = 0;
 	struct dirent* temp = (struct dirent*)malloc(sizeof(struct dirent));
 	// Step 1: Read dir_inode's data block and check each directory entry of dir_inode
+	// Step 2: Check if fname (directory name) is already used in other entries
 	if (dir_find(dir_inode.ino,fname,name_len,temp) == 0) {
 		free(temp);
 		return ALREADY_EXISTS;
@@ -167,6 +168,9 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 				if (dirEntry[j].valid == NOT_SET) {
 					goodDir = dirEntry;
 					loopStatus = 1;
+					goodDir[j].ino = f_ino;
+					goodDir[j].valid = VALID;
+					strcpy(goodDir[j].name,fname);
 					break;
 				}
 			}
@@ -202,9 +206,6 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 		return dir_add(dir_inode,f_ino,fname,name_len);
 	}
 	// Write directory entry
-	goodDir[j].ino = f_ino;
-	goodDir[j].valid = VALID;
-	strcpy(goodDir[j].name,fname);
 	int blockNo = sBlock->d_start_blk + dir_inode.direct_ptr[i];
 	bio_write(blockNo,(void*)goodDir);
 	return 0;
@@ -477,11 +478,7 @@ static int tfs_mkdir(const char *path, mode_t mode) {
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);
 	dir_add(*newNode,availNo,".",2);
-	readi(availNo,newNode);
 	dir_add(*newNode,dirNode->ino,"..",3);
-	time(&(newNode->vstat.st_mtime));
-	time(&(newNode->vstat.st_ctime));
-	time(&(newNode->vstat.st_atime));
 	free(newNode);
 
 	return 0;
@@ -572,13 +569,10 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 		}
 		newNode->direct_ptr[i] = INVALID; // 0 for invalid
 	}
-	time(&(newNode->vstat.st_mtime));
-	time(&(newNode->vstat.st_ctime));
-	time(&(newNode->vstat.st_atime));
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);
 	free(newNode);
-	tfs_write(path,"",0,0,fi);
+	tfs_write(path,"",0,0,fi); // need this to be able to write to files for some reason
 	return 0;
 }
 

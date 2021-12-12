@@ -2,8 +2,8 @@
 Ashank Punj, ap1635 | Justin Rhodes, jgr85
 
 2.	Benchmarking Information
-a.	The total number of blocks used on sample benchmark was:101
-b.	The amount of time it took to run the benchmark was: 1.3 seconds
+a.	The total number of blocks used on sample benchmark was: 205
+b.	The amount of time it took to run the benchmark was: 2.2 seconds
 
 3.	Implementation:
 a.	get_avail_ino

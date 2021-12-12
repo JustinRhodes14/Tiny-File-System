@@ -154,7 +154,6 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 	int j;
 	struct dirent* goodDir;
 	int loopStatus = 0;
-	int loc = 17;
 	struct dirent* temp = (struct dirent*)malloc(sizeof(struct dirent));
 	// Step 1: Read dir_inode's data block and check each directory entry of dir_inode
 	if (dir_find(dir_inode.ino,fname,name_len,temp) == 0) {
@@ -171,7 +170,6 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 			for (j = 0; j < numOfDirents; j++) {
 				if (dirEntry[j].valid == NOT_SET) {
 					goodDir = dirEntry;
-					loc = j;
 					loopStatus = 1;
 					break;
 				}
@@ -179,8 +177,6 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 			if (loopStatus == 1) {
 				break;
 			}
-		} else if (dir_inode.direct_ptr[i] == INVALID && loc > i) {
-			loc = i;
 		}
 	}
 	// Allocate a new data block for this directory if it does not exist
@@ -206,11 +202,12 @@ int dir_add(struct inode dir_inode, uint16_t f_ino, const char *fname, size_t na
 			free(buf);
 		}
 		writei(dir_inode.ino,&dir_inode);
+		return dir_add(dir_inode,f_ino,fname,name_len);
 	}
 	// Write directory entry
-	goodDir[loc].ino = f_ino;
-	goodDir[loc].valid = VALID;
-	strcpy(goodDir[loc].name,fname);
+	goodDir[j].ino = f_ino;
+	goodDir[j].valid = VALID;
+	strcpy(goodDir[j].name,fname);
 	int blockNo = sBlock->d_start_blk + dir_inode.direct_ptr[i];
 	bio_write(blockNo,(void*)goodDir);
 	return 0;
@@ -588,7 +585,7 @@ static int tfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
 	// Step 6: Call writei() to write inode to disk
 	writei(availNo,newNode);
 	free(newNode);
-	tfs_write(path,"temp",5,0,fi);
+	tfs_write(path,"",0,0,fi);
 	return 0;
 }
 
@@ -610,12 +607,13 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 	}
 	// Step 2: Based on size and offset, read its data blocks from disk
 	int offdivblock = offset / BLOCK_SIZE;
-	int lim = offdivblock +1;
-	if (myInode->direct_ptr[0] == INVALID) {
-		return 0; // no block exists
-	}
+	int lim = size/BLOCK_SIZE + 1;
 	int i;
 	for (i = 0; i < lim; i++) {
+		if (myInode->direct_ptr[i] == INVALID) {
+			printf("continuing?\n");
+			continue;
+		}
 		buf = malloc(BLOCK_SIZE);
 		int blockNo = sBlock->d_start_blk + myInode->direct_ptr[offdivblock];
 		bio_read(blockNo,buf);
@@ -624,7 +622,6 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 		if (size < BLOCK_SIZE) {
 			bytes += size;
 			memcpy(readLoc, buf, size);
-			free(myInode);
 			free(buf);
 			return bytes;
 		} else {
@@ -635,7 +632,6 @@ static int tfs_read(const char *path, char *buffer, size_t size, off_t offset, s
 		offdivblock++;
 		free(buf);
 	}
-	free(myInode);
 	return bytes; //else ret 0
 }
 

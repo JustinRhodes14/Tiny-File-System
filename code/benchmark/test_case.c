@@ -41,14 +41,14 @@ int main(int argc, char **argv) {
 		memset(buf, 0x61 + i, BLOCKSIZE);
 
 		if (write(fd, buf, BLOCKSIZE) != BLOCKSIZE) {
-			printf("TEST 2: File write failure \n");
+			printf("TEST 2: File write failure %d\n", i);
 			exit(1);
 		}
 	}
 	
 	fstat(fd, &st);
 	if (st.st_size != ITERS*BLOCKSIZE) {
-		printf("TEST 2: File write failure \n");
+		printf("TEST 2: File write failure %ld\t:\t%d\n",st.st_size,ITERS*BLOCKSIZE);
 		exit(1);
 	}
 	printf("TEST 2: File write Success \n");
@@ -71,9 +71,9 @@ int main(int argc, char **argv) {
 	for (i = 0; i < ITERS; i++) {
 		//clear buffer
 		memset(buf, 0, BLOCKSIZE);
-
-		if (read(fd, buf, BLOCKSIZE) != BLOCKSIZE) {
-			printf("TEST 4: File read failure \n");
+		int val = read(fd, buf, BLOCKSIZE);
+		if (val != BLOCKSIZE) {
+			printf("TEST 4: File read failure %d\t:\t%d\n",val,BLOCKSIZE);
 			exit(1);
 		}
 		//printf("buf %s \n", buf);
